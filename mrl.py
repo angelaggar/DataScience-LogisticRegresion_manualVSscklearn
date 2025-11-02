@@ -1,34 +1,39 @@
 import requests
 import csv
+import time
 
-# 🔹 Parámetros de búsqueda
-categoria_id = "MLA1051"  # reemplaza con la categoría que necesites
-q = None                   # término de búsqueda (opcional)
-limit = 50                 # cantidad máxima de productos a traer
+# 🔹 Configuración
+categoria_id = "MLM1055"  # categoría Celulares en MercadoLibre México
+productos_a_descargar = 1000
+limit_por_pagina = 50  # máximo por solicitud
+url_base = "https://api.mercadolibre.com/sites/MLM/search"
 
-# 🔹 Construir la URL de la API
-url = f"https://api.mercadolibre.com/sites/MLA/search?category={categoria_id}&limit={limit}"
-if q:
-    url += f"&q={q}"
+# 🔹 Función para obtener productos por página
+def obtener_productos(offset=0):
+    params = {
+        "category": categoria_id,
+        "limit": limit_por_pagina,
+        "offset": offset
+    }
+    response = requests.get(url_base, params=params)
+    return response.json().get("results", [])
 
-# 🔹 Hacer la solicitud
-response = requests.get(url)
-data = response.json()
+# 🔹 Descargar todos los productos
+todos_productos = []
+for offset in range(0, productos_a_descargar, limit_por_pagina):
+    productos = obtener_productos(offset)
+    if not productos:
+        break
+    todos_productos.extend(productos)
+    print(f"Descargados hasta el offset {offset + limit_por_pagina}")
+    time.sleep(0.5)  # evitar sobrecargar la API
 
-# 🔹 Guardar resultados en CSV
-with open("productos.csv", "w", newline="", encoding="utf-8") as f:
+# 🔹 Guardar en CSV
+with open("celulares_mx.csv", "w", newline="", encoding="utf-8") as f:
     writer = csv.writer(f)
-    # Encabezados
-    writer.writerow(["id", "titulo", "precio", "moneda", "link", "thumbnail"])
+    writer.writerow(["id", "titulo", "precio_original", "precio_venta", "descripcion", "moneda", "link"])
     
-    for item in data.get("results", []):
-        writer.writerow([
-            item["id"],
-            item["title"],
-            item["price"],
-            item["currency_id"],
-            item["permalink"],
-            item["thumbnail"]
-        ])
-
-print(f"Se descargaron {len(data.get('results', []))} productos en productos.csv")
+    for item in todos_productos[:productos_a_descargar]:
+        precio_original = item.get("original_price") or item.get("price")
+        precio_venta = item.get("price")
+        descripcion = item.get("title")  # título como descripción brev
