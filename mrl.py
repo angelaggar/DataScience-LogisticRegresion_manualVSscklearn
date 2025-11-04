@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from data import burnout_mapping, columnas_relevantes, clasificar_edad, limpiar_genero
+from data import burnout_mapping, columnas_relevantes, clasificar_edad
 
 # ===============================================================
 # 🧩 1️⃣ Cargar y preparar los datos base
@@ -18,11 +18,6 @@ def edad_a_num(edad):
     return grupos.get(grupo, np.nan)
 
 df["Age_Num"] = df["Age"].apply(edad_a_num)
-
-# Limpiar género
-df["Gender_Group"] = df["Gender"].apply(limpiar_genero)
-genero_map = {"Male": 1, "Female": 2, "Other": 3}
-df["Gender_Num"] = df["Gender_Group"].map(genero_map)
 
 # Variable objetivo
 df["burnout"] = df["work_interfere"].map({
@@ -43,14 +38,13 @@ for col in columnas_relevantes:
 df_mapped.fillna(0, inplace=True)
 
 # ===============================================================
-# 📊 3️⃣ Preparar datos para el modelo
+# 📊 3️⃣ Preparar datos para el modelo (sin Gender)
 # ===============================================================
-# Aseguramos que edad y género estén en el DataFrame final
+# Normalizamos edad
 df_mapped["Age_Num"] = df["Age_Num"].fillna(df["Age_Num"].mean())
-df_mapped["Gender_Num"] = df["Gender_Num"].fillna(3)  # default "Other"
 
-# Construimos las columnas finales de predictores
-columnas_finales = columnas_relevantes + ["Age_Num", "Gender_Num"]
+# Construimos las columnas finales de predictores (omitimos Gender)
+columnas_finales = columnas_relevantes + ["Age_Num"]
 
 # Aseguramos que todas estén presentes
 for col in columnas_finales:
@@ -129,7 +123,7 @@ print("📊 Coeficientes (impacto sobre burnout):")
 print(coef_df.head(10))
 
 # ===============================================================
-# 🔍 7️⃣ Predicción para un nuevo encuestado (versión corregida)
+# 🔍 7️⃣ Predicción para un nuevo encuestado (sin Gender)
 # ===============================================================
 def predecir_burnout(nuevo_encuestado, weights, medias, stds):
     df_nueva = nuevo_encuestado.copy()
@@ -141,9 +135,6 @@ def predecir_burnout(nuevo_encuestado, weights, medias, stds):
 
     # Calcular variables adicionales
     df_nueva["Age_Num"] = df_nueva["Age"].apply(edad_a_num)
-    df_nueva["Gender_Group"] = df_nueva["Gender"].apply(limpiar_genero)
-    genero_map = {"Male": 1, "Female": 2, "Other": 3}
-    df_nueva["Gender_Num"] = df_nueva["Gender_Group"].map(genero_map)
 
     # Normalizar la edad
     df_nueva["Age_Num"] = (df_nueva["Age_Num"] - medias["Age_Num"]) / stds["Age_Num"]
@@ -161,15 +152,12 @@ def predecir_burnout(nuevo_encuestado, weights, medias, stds):
     prob = sigmoid(np.dot(X_nueva, weights))
     return prob
 
-
 # ===============================================================
 # 🧾 8️⃣ Prueba con nueva encuesta
 # ===============================================================
 nuevo_encuestado = pd.DataFrame([{
     'Age': 29,
-    'Gender': 'Female',
     'work_interfere': 'Often',
-    #['Never', 'Rarely', 'Sometimes', 'Often']
     'family_history': 'Yes',
     'treatment': 'No',
     'remote_work': 'Yes',
