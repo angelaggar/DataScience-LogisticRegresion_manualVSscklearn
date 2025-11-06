@@ -33,6 +33,12 @@ wi = [random.uniform(-1, 1) for _ in range(vars_x)]
 def sigmoide(z):
     return 1 / (1 + math.exp(-z))
 
+#* Calcular pesos de clases para balanceo
+n_malignos = (y_train == 1).sum()  #*
+n_benignos = (y_train == 0).sum()  #*
+peso_maligno = len(y_train) / (2 * n_malignos)  #*
+peso_benigno = len(y_train) / (2 * n_benignos)  #*
+
 def entrenar(x, y, wi, inter, loops, a, m, lambda_reg):
     for l in range(loops):
         gpeso = [0.0] * vars_x
@@ -41,6 +47,13 @@ def entrenar(x, y, wi, inter, loops, a, m, lambda_reg):
             z_val = inter + sum(row[col] * wi[j] for j, col in enumerate(x.columns))
             y_pre = sigmoide(z_val)
             e = y_pre - y[i]
+
+            #* Aplicar peso según clase
+            if y[i] == 1:  # maligno
+                e *= peso_maligno  #*
+            else:           # benigno
+                e *= peso_benigno  #*
+
             ginter += e
             for j, col in enumerate(x.columns):
                 gpeso[j] += e * row[col] + lambda_reg * wi[j]
@@ -96,3 +109,18 @@ print(f"Probabilidad de malignidad para la fila 33 del CSV: {prob_caso2:.4f}")
 print(f"Predicción: {pred_caso2}")
 print("Real:", "Benigno" if y_ej2 == 0 else "Maligno")
 
+# Calcular probabilidades para todo el dataset
+probabilidades_todas, _ = predecir(x, wi, inter)
+
+# Crear DataFrame con las probabilidades
+df_prob = x.copy()
+df_prob["probabilidad"] = probabilidades_todas
+
+# Filtrar filas apenas por encima de 0.5
+limite_inferior = 0.5001
+limite_superior = 0.52
+df_cercano_05 = df_prob[(df_prob["probabilidad"] >= limite_inferior) & 
+                        (df_prob["probabilidad"] <= limite_superior)]
+
+print("Filas con probabilidad apenas superior a 0.5:")
+print(df_cercano_05)
