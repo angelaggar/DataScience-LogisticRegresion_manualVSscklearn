@@ -18,6 +18,7 @@ vars_x = x.shape[1]
 loops = 700
 a = 0.01
 l_reg = 0.01
+lossi= 1e-4
 
 m = len(y)
 idx = list(range(m))
@@ -36,24 +37,26 @@ numB = (y_train == 0).sum()
 wm = len(y_train) / (2 * numM)
 wb = len(y_train) / (2 * numB)
 
-def entrenar(x, y, wi, inter, loops, a, m, l_reg):
+def entrenar(x, y, wi, inter, loops, a, m, l_reg, lossi):
+    prevloss = float('inf')
     for loop in range(loops + 1):
         gpeso = [0.0] * vars_x
         ginter = 0.0
         for i, row in x.iterrows():
             z_val = inter + sum(row[col] * wi[j] for j, col in enumerate(x.columns))
             ypre = sigmoide(z_val)
-            e = ypre - y[i]
-            if y[i] == 1: e *= wm
-            else: e *= wb
-            ginter += e
+            err = ypre - y[i]
+            if y[i] == 1: err *= wm
+            else: err *= wb
+            ginter += err
             for j, col in enumerate(x.columns):
-                gpeso[j] += e * row[col] + l_reg * wi[j]
+                gpeso[j] += err * row[col] + l_reg * wi[j]
 
         ginter /= m
         gpeso = [g / m for g in gpeso]
         inter -= a * ginter
         wi = [w - a * grad for w, grad in zip(wi, gpeso)]
+        
 
         if loop % 50 == 0 or loop == loops:
             z_list = [inter + sum(row[col] * w for w, col in zip(wi, x.columns)) for _, row in x.iterrows()]
@@ -62,6 +65,11 @@ def entrenar(x, y, wi, inter, loops, a, m, l_reg):
             accuracy = sum((1 if p >= 0.5 else 0) == y_i for p, y_i in zip(prob_list, y)) / len(y) * 100
             print(f"Iteración {loop}: pérdida = {loss:.5f}, exactitud = {accuracy:.4f}%")
 
+            if lossi is not None and abs(prevloss - loss) < lossi:
+                print(f"Convergencia alcanzada en iteración {loop}, con pérdida de {loss:.5f}")
+                break
+            prevloss=loss
+        
     return wi, inter
 
 def predecir(x, wi, inter):
@@ -77,7 +85,7 @@ def predecir_caso(fila, wi, inter):
     return prob, pred
 
 timer1 = t.time()
-wi, inter = entrenar(x_train, y_train, wi, inter, loops, a, len(y_train), l_reg)
+wi, inter = entrenar(x_train, y_train, wi, inter, loops, a, len(y_train), l_reg, lossi)
 timer2 = t.time()
 timertot = timer2 - timer1
 print(f"Tardo en entrenar {timertot:.5f} segundos")

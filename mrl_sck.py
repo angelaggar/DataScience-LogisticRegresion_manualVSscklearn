@@ -30,7 +30,7 @@ model = LogisticRegression(
     penalty='l2',
     C=1/0.01,
     max_iter=loops,
-    tol=1e-6,
+    tol=1e-4,
     random_state=56
 )
 
