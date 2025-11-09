@@ -15,7 +15,7 @@ yneg = sum(1 for val in y if val != 1)
 
 inter = 0.0
 vars_x = x.shape[1]
-loops = 500
+loops = 1000
 a = 0.01
 l_reg = 0.01
 lossi= 1e-4
